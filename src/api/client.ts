@@ -1,36 +1,53 @@
-import { ApiError, ProblemDetail } from './errors';
+import axios, { AxiosError } from 'axios';
+import { getApiBaseUrl } from '@/lib/env';
+import { ApiError } from './errors';
+import { tokenStore } from './tokenStore';
 
-export const API_BASE_URL = 'http://10.0.2.2:8080';
+type UnauthorizedHandler = () => void;
 
-export type ApiClientConfig = {
-  baseURL: string;
-  accessToken?: string;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+export const setUnauthorizedHandler = (handler: UnauthorizedHandler | null): void => {
+  unauthorizedHandler = handler;
 };
 
-export const normalizeProblemDetail = (payload: unknown): ProblemDetail => {
-  const candidate = typeof payload === 'object' && payload !== null ? payload : {};
-
-  return {
-    status: Number((candidate as Record<string, unknown>).status ?? 500),
-    title: String((candidate as Record<string, unknown>).title ?? 'Request failed'),
-    detail: String((candidate as Record<string, unknown>).detail ?? 'Something went wrong.'),
-    fieldErrors:
-      typeof (candidate as Record<string, unknown>).fieldErrors === 'object'
-        ? ((candidate as Record<string, Record<string, string[]>>).fieldErrors ?? {})
-        : undefined,
-  };
-};
-
-export const getAuthHeaders = (token: string): Record<string, string> => ({
-  Authorization: `Bearer ${token}`,
-  'Content-Type': 'application/json',
+export const apiClient = axios.create({
+  baseURL: getApiBaseUrl(),
+  timeout: 15000,
+  headers: { Accept: 'application/json' },
 });
 
-export const createApiError = (payload: unknown): ApiError => {
-  const normalized = normalizeProblemDetail(payload);
-  return new ApiError(normalized);
-};
+apiClient.interceptors.request.use(config => {
+  const token = tokenStore.get();
+  if (token) {
+    config.headers.set('Authorization', `Bearer ${token}`);
+  }
+  return config;
+});
 
-export const apiClient: ApiClientConfig = {
-  baseURL: API_BASE_URL,
-};
+apiClient.interceptors.response.use(
+  response => response,
+  (error: unknown) => {
+    if (!axios.isAxiosError(error)) {
+      return Promise.reject(error);
+    }
+    const axiosError = error as AxiosError;
+    if (!axiosError.response) {
+      return Promise.reject(
+        new ApiError({
+          status: 0,
+          title: 'Network error',
+          detail: 'Cannot reach the server. Check your connection.',
+        }),
+      );
+    }
+    const { status, data } = axiosError.response;
+    if (status === 401) {
+      tokenStore.clear();
+      unauthorizedHandler?.();
+    }
+    return Promise.reject(ApiError.fromProblemDetail(data, status));
+  },
+);
+
+export default apiClient;
