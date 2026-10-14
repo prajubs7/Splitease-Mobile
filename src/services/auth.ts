@@ -1,30 +1,11 @@
-export type LoginRequest = {
-  email: string;
-  password: string;
-};
+import { apiClient } from '@/api/client';
+import type { LoginRequest, RegisterRequest, TokenResponse, UserResponse } from '@/api/types';
 
-export type RegisterRequest = {
-  email: string;
-  password: string;
-  fullName: string;
-};
+export const login = async (payload: LoginRequest): Promise<TokenResponse> =>
+  (await apiClient.post<TokenResponse>('/api/public/auth/login', payload)).data;
 
-export const login = async (_payload: LoginRequest): Promise<{ accessToken: string; tokenType: string; expiresIn: number }> => ({
-  accessToken: 'demo-token',
-  tokenType: 'Bearer',
-  expiresIn: 3600,
-});
+export const register = async (payload: RegisterRequest): Promise<UserResponse> =>
+  (await apiClient.post<UserResponse>('/api/public/auth/register', payload)).data;
 
-export const register = async (_payload: RegisterRequest) => ({
-  id: 'demo-user-id',
-  email: _payload.email,
-  fullName: _payload.fullName,
-  createdAt: new Date().toISOString(),
-});
-
-export const getCurrentUser = async () => ({
-  id: 'demo-user-id',
-  email: 'demo@example.com',
-  fullName: 'Demo User',
-  createdAt: new Date().toISOString(),
-});
+export const getCurrentUser = async (): Promise<UserResponse> =>
+  (await apiClient.get<UserResponse>('/api/v1/users/me')).data;
