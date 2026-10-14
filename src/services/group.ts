@@ -1,30 +1,26 @@
-export type CreateGroupRequest = {
-  name: string;
-};
+import { apiClient } from '@/api/client';
+import type {
+  AddMemberRequest,
+  CreateGroupRequest,
+  GroupResponse,
+  MemberResponse,
+  Page,
+} from '@/api/types';
 
-export const fetchGroups = async () => [];
+export const fetchGroups = async (page: number, size = 20): Promise<Page<GroupResponse>> =>
+  (await apiClient.get<Page<GroupResponse>>('/api/v1/groups', { params: { page, size } })).data;
 
-export const fetchGroupById = async (_groupId: string) => ({
-  id: _groupId,
-  name: 'Demo Group',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-});
+export const fetchGroupById = async (groupId: string): Promise<GroupResponse> =>
+  (await apiClient.get<GroupResponse>(`/api/v1/groups/${groupId}`)).data;
 
-export const createGroup = async (payload: CreateGroupRequest) => ({
-  id: 'demo-group-id',
-  name: payload.name,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-});
+export const createGroup = async (payload: CreateGroupRequest): Promise<GroupResponse> =>
+  (await apiClient.post<GroupResponse>('/api/v1/groups', payload)).data;
 
-export const fetchMembers = async (_groupId: string) => [];
+export const fetchMembers = async (groupId: string): Promise<MemberResponse[]> =>
+  (await apiClient.get<MemberResponse[]>(`/api/v1/groups/${groupId}/members`)).data;
 
-export const addMember = async (_groupId: string, _email: string) => ({
-  id: 'demo-member-id',
-  userId: 'demo-user-id',
-  groupId: _groupId,
-  email: _email,
-  fullName: 'Demo Member',
-  joinedAt: new Date().toISOString(),
-});
+export const addMember = async (
+  groupId: string,
+  payload: AddMemberRequest,
+): Promise<MemberResponse> =>
+  (await apiClient.post<MemberResponse>(`/api/v1/groups/${groupId}/members`, payload)).data;
