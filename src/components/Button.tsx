@@ -1,21 +1,31 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { colors } from '../theme/colors';
 
 type ButtonProps = {
   label: string;
   onPress?: () => void;
   disabled?: boolean;
+  loading?: boolean;
 };
 
-export const Button = ({ label, onPress, disabled = false }: ButtonProps): React.ReactElement => (
+export const Button = ({
+  label,
+  onPress,
+  disabled = false,
+  loading = false,
+}: ButtonProps): React.ReactElement => (
   <Pressable
     accessibilityRole="button"
-    disabled={disabled}
+    disabled={disabled || loading}
     onPress={onPress}
-    style={({ pressed }) => [styles.button, disabled && styles.buttonDisabled, pressed && styles.buttonPressed]}
+    style={({ pressed }) => [
+      styles.button,
+      (disabled || loading) && styles.buttonDisabled,
+      pressed && styles.buttonPressed,
+    ]}
   >
-    <Text style={styles.label}>{label}</Text>
+    {loading ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.label}>{label}</Text>}
   </Pressable>
 );
 
