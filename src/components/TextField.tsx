@@ -1,35 +1,41 @@
 import React from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { colors } from '../theme/colors';
 
-type TextFieldProps = {
+type TextFieldProps = Pick<
+  TextInputProps,
+  | 'value'
+  | 'onChangeText'
+  | 'onBlur'
+  | 'placeholder'
+  | 'secureTextEntry'
+  | 'autoCapitalize'
+  | 'autoComplete'
+  | 'keyboardType'
+  | 'returnKeyType'
+  | 'onSubmitEditing'
+  | 'editable'
+  | 'maxLength'
+> & {
   label?: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder?: string;
-  secureTextEntry?: boolean;
-  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  error?: string;
 };
 
 export const TextField = ({
   label,
-  value,
-  onChangeText,
-  placeholder,
-  secureTextEntry = false,
+  error,
   autoCapitalize = 'sentences',
+  ...inputProps
 }: TextFieldProps): React.ReactElement => (
   <View style={styles.container}>
     {label ? <Text style={styles.label}>{label}</Text> : null}
     <TextInput
-      value={value}
-      onChangeText={onChangeText}
-      placeholder={placeholder}
-      secureTextEntry={secureTextEntry}
+      {...inputProps}
       autoCapitalize={autoCapitalize}
-      style={styles.input}
+      style={[styles.input, error ? styles.inputError : null]}
       placeholderTextColor={colors.textMuted}
     />
+    {error ? <Text style={styles.error}>{error}</Text> : null}
   </View>
 );
 
@@ -50,6 +56,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: colors.surface,
     color: colors.text,
+  },
+  inputError: {
+    borderColor: colors.danger,
+  },
+  error: {
+    color: colors.danger,
+    marginTop: 6,
   },
 });
 
