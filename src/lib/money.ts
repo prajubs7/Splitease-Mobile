@@ -1,52 +1,59 @@
-export type MoneyInput = string | number;
+// Money is handled as integer cents; never do arithmetic on decimal numbers.
 
-const normalizeMoneyString = (value: MoneyInput): string => {
-  if (typeof value === 'number') {
-    return value.toFixed(2);
+const MONEY_PATTERN = /^([+-])?(\d*)(?:\.(\d*))?$/;
+
+/** "100.00" | "12.5" | 12.5 -> 10000 | 1250. Throws on malformed input or more than 2 decimals. */
+export const toCents = (value: string | number): number => {
+  const text = (typeof value === 'number' ? String(value) : value).trim();
+  const match = MONEY_PATTERN.exec(text);
+  if (!match || (match[2] === '' && !match[3])) {
+    throw new Error(`Invalid money amount: "${text}"`);
   }
-
-  return value.trim();
-};
-
-export const toCents = (value: MoneyInput): number => {
-  const text = normalizeMoneyString(value);
-  const parsed = Number.parseFloat(text);
-
-  if (Number.isNaN(parsed)) {
-    return 0;
+  const sign = match[1];
+  const whole = match[2] ?? '';
+  const fraction = match[3] ?? '';
+  if (/[1-9]/.test(fraction.slice(2))) {
+    throw new Error(`Too many decimal places: "${text}"`);
   }
-
-  return Math.round(parsed * 100);
+  const cents = Number(whole || '0') * 100 + Number(fraction.padEnd(2, '0').slice(0, 2));
+  return sign === '-' ? -cents : cents;
 };
 
-export const fromCents = (value: number): string => {
-  const safeValue = Number.isFinite(value) ? Math.round(value) : 0;
-  const dollars = Math.floor(Math.abs(safeValue) / 100);
-  const cents = Math.abs(safeValue) % 100;
-  const sign = safeValue < 0 ? '-' : '';
-
-  return `${sign}${dollars}.${String(cents).padStart(2, '0')}`;
+/** 10000 -> "100.00", -5 -> "-0.05". */
+export const fromCents = (cents: number): string => {
+  if (!Number.isInteger(cents)) {
+    throw new Error(`Cents must be an integer: ${cents}`);
+  }
+  const abs = Math.abs(cents);
+  const text = `${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`;
+  return cents < 0 ? `-${text}` : text;
 };
 
-export const addCents = (left: number, right: number): number => left + right;
+const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
-export const subtractCents = (left: number, right: number): number => left - right;
-
-export const splitEvenly = (totalCents: number, participantCount: number): number[] => {
-  const safeCount = Math.max(1, participantCount);
-  const base = Math.floor(totalCents / safeCount);
-  const remainder = totalCents % safeCount;
-
-  return Array.from({ length: safeCount }, (_, index) => base + (index < remainder ? 1 : 0));
+/** "1234.5" | 1234.5 -> "$1,234.50". Falls back to $0.00 for unparseable input. */
+export const formatMoney = (value: string | number): string => {
+  let cents: number;
+  try {
+    cents = toCents(value);
+  } catch {
+    cents = 0;
+  }
+  return formatter.format(cents / 100);
 };
 
-export const moneyToCurrency = (value: MoneyInput): string => {
-  const amount = Number.parseFloat(normalizeMoneyString(value));
-
-  return Number.isFinite(amount)
-    ? new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }).format(amount)
-    : '$0.00';
+/** Same as the backend SplitCalculator: base share rounded down, leftover cents go to the first participants. */
+export const splitEqual = (totalCents: number, n: number): number[] => {
+  if (!Number.isInteger(totalCents) || totalCents <= 0) {
+    throw new Error('Total must be a positive number of cents');
+  }
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new Error('Participant count must be a positive integer');
+  }
+  const base = Math.floor(totalCents / n);
+  if (base === 0) {
+    throw new Error(`${fromCents(totalCents)} is too small to split among ${n} people`);
+  }
+  const extra = totalCents - base * n;
+  return Array.from({ length: n }, (_, i) => (i < extra ? base + 1 : base));
 };
