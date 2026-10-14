@@ -42,7 +42,8 @@ apiClient.interceptors.response.use(
       );
     }
     const { status, data } = axiosError.response;
-    if (status === 401) {
+    // a 401 on a request that carried a token means the session is dead (login failures carry none)
+    if (status === 401 && axiosError.config?.headers?.has('Authorization')) {
       tokenStore.clear();
       unauthorizedHandler?.();
     }
